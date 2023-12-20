@@ -1,33 +1,43 @@
 package config
 
 import (
-	"fmt"
 	"os"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 )
+
+type AppConfig struct {
+	AppHost  string
+	Port     int
+	LogLevel string
+	Env      string
+}
 
 var (
 	CONFIG_FILE = "./configs/config.yml"
 )
 
-func LoadConfigs() {
+func LoadConfigs() AppConfig {
 	viper.SetConfigFile(CONFIG_FILE)
 	viper.ReadInConfig()
 
-	env := getEnvironment()
+	env := getEnvVarOrString("ENV", "local")
 
-	loglevel := viper.Get(fmt.Sprintf("%s.loglevel", env))
-	fmt.Println(loglevel)
+	envValues := viper.GetStringMap(env)
+
+	cfg := AppConfig{}
+	cfg.Env = env
+	err := mapstructure.Decode(envValues, &cfg)
+	if err != nil {
+		panic(err)
+	}
+
+	return cfg
 }
 
-func getEnvironment() string {
-	return getEnvVarOrDefault("env", "local").(string)
-}
-
-func getEnvVarOrDefault(path string, defaultValue interface{}) interface{} {
-	value := os.Getenv(path)
-	if value != "" {
+func getEnvVarOrString(path string, defaultValue string) string {
+	if value, ok := os.LookupEnv(path); ok {
 		return value
 	}
 	return defaultValue
